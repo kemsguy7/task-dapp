@@ -59,7 +59,8 @@ function App() {
     setIsLoading(true);
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
-      const contract = new ethers.Contract(contractAddress, abi, provider);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(contractAddress, abi, signer);
       console.log('Fetching tasks...');
       
       const tasksList = await contract.getMyTask();
