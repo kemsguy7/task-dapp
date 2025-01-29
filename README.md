@@ -1,8 +1,9 @@
-# React + Vite
+# TASK DAPP APP
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+- A simple Dapp app that interacts with a smart contract and performs action such as Add get and Delete Task
 
-Currently, two official plugins are available:
+- Use Toast to show user messages
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Smart Contract Address: ```0xc8c09c30c737a5292d9d4d3d1d11c52ec76a2cdc```
+
+
