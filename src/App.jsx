@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { ethers } from 'ethers'
-import './index.css'
 import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import abi from './abi.json'
@@ -11,6 +10,7 @@ function App() {
   const [taskText, setTaskText] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [address, setAddress] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   
   const contractAddress = "0xc8c09c30c737a5292d9d4d3d1d11c52ec76a2cdc";
 
@@ -51,26 +51,56 @@ function App() {
   };
 
   async function getTasks() {
+    if (!isConnected) {
+      console.log('Wallet not connected');
+      return;
+    }
+
+    setIsLoading(true);
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const contract = new ethers.Contract(contractAddress, abi, provider);
+      console.log('Fetching tasks...');
+      
       const tasksList = await contract.getMyTask();
+      console.log('Raw tasks from contract:', tasksList);
       
-      // Process and filter the tasks
-      const processedTasks = tasksList
-        .filter(task => task.id !== undefined && !task.isDeleted)
-        .map(task => ({
-          id: Number(task.id),
-          taskTitle: task.taskTitle || '',
-          taskText: task.taskText || '',
-          isDeleted: !!task.isDeleted
-        }));
+      // Convert the Proxy object to a regular array
+      const tasksArray = Array.from(tasksList);
+      console.log('Tasks array:', tasksArray);
       
+      // Process tasks
+      const processedTasks = tasksArray
+        .filter(task => {
+          // Log each task for debugging
+          console.log('Processing task:', task);
+          return task && task.taskTitle && task.taskText && !task.isDeleted;
+        })
+        .map(task => {
+          // Convert BigInt to number and ensure all fields are present
+          const processed = {
+            id: Number(task.id.toString()),
+            taskTitle: task.taskTitle,
+            taskText: task.taskText,
+            isDeleted: task.isDeleted
+          };
+          console.log('Processed task:', processed);
+          return processed;
+        });
+      
+      console.log('Final processed tasks:', processedTasks);
       setTasks(processedTasks);
-      toast.success('Tasks loaded!');
+      
+      if (processedTasks.length === 0) {
+        toast.info('No tasks found');
+      } else {
+        toast.success(`Loaded ${processedTasks.length} tasks`);
+      }
     } catch (error) {
-      console.error('Fetch tasks error:', error);
-      toast.error('Failed to fetch tasks');
+      console.error('Error fetching tasks:', error);
+      toast.error('Failed to fetch tasks: ' + error.message);
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -96,12 +126,18 @@ function App() {
       await tx.wait();
       toast.dismiss('addTask');
       toast.success('Task added successfully!');
-      getTasks();
+      
+      // Clear inputs
       setTaskTitle('');
       setTaskText('');
+      
+      // Wait a bit before refreshing tasks to allow the blockchain to update
+      setTimeout(() => {
+        getTasks();
+      }, 2000);
     } catch (error) {
       console.error('Add task error:', error);
-      toast.error(error.message || 'Failed to add task');
+      toast.error('Failed to add task: ' + error.message);
     }
   }
 
@@ -122,10 +158,18 @@ function App() {
       await tx.wait();
       toast.dismiss('deleteTask');
       toast.success('Task deleted successfully!');
-      getTasks();
+      
+      // Wait a bit before refreshing tasks
+      setTimeout(() => {
+        getTasks();
+      }, 2000);
     } catch (error) {
       console.error('Delete task error:', error);
-      toast.error(error.message || 'Failed to delete task');
+      if (error.message.includes('owner')) {
+        toast.error('You are not the owner of this task');
+      } else {
+        toast.error('Failed to delete task: ' + error.message);
+      }
     }
   }
 
@@ -150,7 +194,7 @@ function App() {
 
         {isConnected && (
           <div className="mb-4 text-sm text-gray-400">
-            {address.slice(0, 6)}...{address.slice(-4)}
+            Connected: {address.slice(0, 6)}...{address.slice(-4)}
           </div>
         )}
         
@@ -184,9 +228,10 @@ function App() {
               <h3 className="text-lg text-white">My Tasks</h3>
               <button 
                 onClick={getTasks}
-                className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-all duration-300"
+                disabled={!isConnected || isLoading}
+                className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Refresh Tasks
+                {isLoading ? 'Loading...' : 'Refresh Tasks'}
               </button>
             </div>
             <div className="space-y-4">
@@ -202,8 +247,11 @@ function App() {
                   </button>
                 </div>
               ))}
-              {tasks.length === 0 && (
+              {!isLoading && tasks.length === 0 && (
                 <p className="text-gray-400 text-center py-4">No tasks found</p>
+              )}
+              {isLoading && (
+                <p className="text-gray-400 text-center py-4">Loading tasks...</p>
               )}
             </div>
           </div>
